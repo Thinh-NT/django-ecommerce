@@ -1,8 +1,12 @@
+
 from django.shortcuts import get_object_or_404, redirect, render
 from django.contrib import messages
+from django.core.exceptions import ObjectDoesNotExist
 from .models import Item, Order, OrderItem
-from django.views.generic import ListView, DetailView
+from django.views.generic import ListView, DetailView, View
 from django.utils import timezone
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.mixins import LoginRequiredMixin
 
 
 class HomeView(ListView):
@@ -18,6 +22,19 @@ class ItemDetailView(DetailView):
     context_object_name = 'item'
 
 
+class OrderSummaryView(LoginRequiredMixin, View):
+    def get(self, request, *args, **kwargs):
+        try:
+            order = Order.objects.get(user=request.user, ordered=False)
+            context = {'order': order}
+        except ObjectDoesNotExist:
+            messages.error(
+                request, 'You do not have an order yet, keep shopping.')
+            return redirect('store:home')
+        return render(request, 'shop/order_summary.html', context)
+
+
+@login_required
 def add_item_to_cart(request, slug):
     item = get_object_or_404(Item, slug=slug)
     order_item, _ = OrderItem.objects.get_or_create(
@@ -45,6 +62,7 @@ def add_item_to_cart(request, slug):
     return redirect('store:product', slug=slug)
 
 
+@login_required
 def remove_from_cart(request, slug):
     item = get_object_or_404(Item, slug=slug)
     order_qs = Order.objects.filter(user=request.user, ordered=False)

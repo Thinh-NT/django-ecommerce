@@ -1,0 +1,74 @@
+{% extends 'shop/base.html' %}
+
+{% block extra_head %}
+<style type="text/css">
+    html,
+    body,
+    header,
+    .carousel {
+        height: 60vh;
+    }
+
+    @media (max-width: 740px) {
+
+        html,
+        body,
+        header,
+        .carousel {
+            height: 100vh;
+        }
+    }
+
+    @media (min-width: 800px) and (max-width: 850px) {
+
+        html,
+        body,
+        header,
+        .carousel {
+            height: 100vh;
+        }
+    }
+</style>
+{% endblock extra_head %}
+
+{% block content %}
+<main>
+    <div class="container">
+
+        <!--Section: Products v.3-->
+        <section class="text-center mb-4">
+
+            <!--Grid row-->
+            <div class="row wow fadeIn">
+                <h2>Order summmary</h2>
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th scope="col">#</th>
+                            <th scope="col">Item</th>
+                            <th scope="col">Price</th>
+                            <th scope="col">Quantity</th>
+                            <th scope="col">Total price</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for order_item in order.items.all %}
+                        <tr>
+
+                            <th scope="row">1</th>
+                            <td>{{ order_item.item.title }}</td>
+                            <td>{{ order_item.item.get_final_price }}</td>
+                            <td>{{ order_item.quantity }}</td>
+                            <td>${{ order_item.get_total_price }}</td>
+
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+
+            </div>
+
+        </section>
+    </div>
+</main>
+{% endblock content %}

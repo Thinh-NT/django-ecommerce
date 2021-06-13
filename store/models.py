@@ -54,6 +54,12 @@ class OrderItem(models.Model):
     def __str__(self) -> str:
         return f'{self.quantity} of {self.item.title}'
 
+    def get_total_price(self):
+        if self.item.discount_price:
+            return self.item.discount_price * self.quantity
+        else:
+            return self.item.price * self.quantity
+
 
 class Order(models.Model):
     items = models.ManyToManyField(OrderItem)
