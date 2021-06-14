@@ -1,13 +1,39 @@
+import json
 
-from django.shortcuts import get_object_or_404, redirect, render
+from django.http.response import JsonResponse
+
+import stripe
 from django.contrib import messages
-from django.core.exceptions import ObjectDoesNotExist
-from .models import Item, Order, OrderItem, BillingAddress
-from .forms import CheckoutForm
-from django.views.generic import ListView, DetailView, View
-from django.utils import timezone
+from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.core.exceptions import ObjectDoesNotExist
+from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
+from django.views.generic import DetailView, ListView, View
+
+from .forms import CheckoutForm
+from .models import BillingAddress, Item, Order, OrderItem
+
+# This is a sample test API key. Sign in to see examples pre-filled with your key.
+stripe.api_key = settings.STRIPE_SECRET_KEY
+
+
+class CreatePayment(View):
+    def post(self, request, *args, **kwargs):
+        try:
+            order = Order.objects.get(user=request.user, ordered=False)
+            intent = stripe.PaymentIntent.create(
+                amount=int(order.total()*100),
+                currency='usd',
+                payment_method_types=["card"]
+            )
+            return JsonResponse({
+                'clientSecret': intent['client_secret']
+            })
+
+        except Exception as e:
+            return JsonResponse({'error': str(e)})
 
 
 class HomeView(ListView):
@@ -25,6 +51,7 @@ class ItemDetailView(DetailView):
 
 class PaymentView(View):
     def get(self, request, *args, **kwargs):
+        print(stripe.api_key)
         return render(request, 'shop/payment.html')
 
 

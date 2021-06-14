@@ -3,7 +3,7 @@ from .views import (
     HomeView, ItemDetailView,
     add_item_to_cart, remove_from_cart, remove_single_item_from_cart,
     add_single_item_to_cart, remove_item_from_cart,
-    OrderSummaryView, CheckoutView, PaymentView,
+    OrderSummaryView, CheckoutView, PaymentView, CreatePayment,
 )
 
 app_name = 'store'
@@ -17,6 +17,8 @@ urlpatterns = [
          view=CheckoutView.as_view(), name='checkout'),
     path(route='payment/<payment_option>',
          view=PaymentView.as_view(), name='payment'),
+    path(route='stripe-payment',
+         view=CreatePayment.as_view(), name='stripe-payment'),
     path(route='add_item_to_cart/<slug>',
          view=add_item_to_cart, name='add-item-to-cart'),
     path(route='remove_from_cart/<slug>',
