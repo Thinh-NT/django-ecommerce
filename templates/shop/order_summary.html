@@ -36,7 +36,7 @@
     <div class="container">
 
         <!--Section: Products v.3-->
-        <section class="text-center mb-4">
+        <section class="mb-4">
 
             <!--Grid row-->
             <div class="row wow fadeIn">
@@ -53,16 +53,49 @@
                     </thead>
                     <tbody>
                         {% for order_item in order.items.all %}
+
                         <tr>
-
-                            <th scope="row">1</th>
+                            <th scope="row">{{ forloop.counter }}</th>
                             <td>{{ order_item.item.title }}</td>
-                            <td>{{ order_item.item.get_final_price }}</td>
-                            <td>{{ order_item.quantity }}</td>
-                            <td>${{ order_item.get_total_price }}</td>
-
+                            <td>{{ order_item.item.get_final_price | floatformat:2 }}</td>
+                            <td>
+                                <a href="{% url 'store:remove-single-item-from-cart' slug=order_item.item.slug %}"
+                                    class="fas fa-minus mr-2"></a>
+                                {{ order_item.quantity }}
+                                <a href="{% url 'store:add-single-item-to-cart' slug=order_item.item.slug %}"
+                                    class="fas fa-plus ml-2"></a>
+                            </td>
+                            <td>
+                                ${{ order_item.get_total_price | floatformat:2 }}
+                                <a href="{% url 'store:remove-item-from-cart' slug=order_item.item.slug %}"
+                                    class="fas fa-trash float-right"></a>
+                            </td>
                         </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan='5'>Your cart is empty</td>
+                        </tr>
+                        <tr>
+                            <td colspan="5">
+                                <a class='btn btn-primary float-right' href='/'>Continue shopping</a>
+                            </td>
+                        </tr>
+
                         {% endfor %}
+                        {% if order.total %}
+                        <tr>
+                            <td colspan="4">Order total price</td>
+                            <td>${{ order.total | floatformat:2 }}</td>
+                        </tr>
+                        <tr>
+                            <td colspan="5">
+                                <a class="btn btn-primary float-right" href="{% url 'store:home' %}">Continue
+                                    shopping</a>
+                                <a class="btn btn-warning float-right" href="{% url 'store:checkout' %}">Proceed to
+                                    checkout</a>
+                            </td>
+                        </tr>
+                        {% endif %}
                     </tbody>
                 </table>
 

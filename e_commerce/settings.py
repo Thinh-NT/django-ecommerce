@@ -27,7 +27,9 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
 
+    # forms
     'crispy_forms',
+    'django_countries',
 
     # local
     'store',
