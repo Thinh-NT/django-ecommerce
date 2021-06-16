@@ -1,6 +1,6 @@
 import json
 
-from django.http.response import JsonResponse
+from django.http.response import HttpResponseRedirect, JsonResponse
 
 import stripe
 from django.contrib import messages
@@ -12,14 +12,14 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.generic import DetailView, ListView, View
 
-from .forms import CheckoutForm
-from .models import BillingAddress, Item, Order, OrderItem
+from .forms import CheckoutForm, CouponForm
+from .models import BillingAddress, Item, Order, OrderItem, Payment, Coupon
 
 # This is a sample test API key. Sign in to see examples pre-filled with your key.
 stripe.api_key = settings.STRIPE_SECRET_KEY
 
 
-class CreatePayment(View):
+class CreatePayment(LoginRequiredMixin, View):
     def post(self, request, *args, **kwargs):
         try:
             order = Order.objects.get(user=request.user, ordered=False)
@@ -28,12 +28,42 @@ class CreatePayment(View):
                 currency='usd',
                 payment_method_types=["card"]
             )
+            payment = Payment()
+            payment.code = intent['id']
+            payment.user = request.user
+            payment.amount = order.total()
+            order.payment = payment
+            order.ordered = True
+            payment.save()
+            order.save()
+
+            order_items = order.items.all()
+            order_items.update(ordered=True)
+            for item in order_items:
+                item.save()
             return JsonResponse({
                 'clientSecret': intent['client_secret']
             })
+        except stripe.error.CardError as e:
+            messages.warning(request, "Please check your card's information.")
+        except stripe.error.RateLimitError as e:
+            # Too many requests made to the API too quickly
+            messages.warning(request, "Traffic, please try again.")
+        except stripe.error.InvalidRequestError as e:
+            # Invalid parameters were supplied to Stripe's API
+            messages.warning(request, "Invalid request, please try again")
+        except stripe.error.AuthenticationError as e:
+            # Authentication with Stripe's API failed
+            # (maybe you changed API keys recently)
+            messages.warning(
+                request, "You can make transaction now, please try again later.")
+        except stripe.error.APIConnectionError as e:
+            messages.warning(request, "Please check your network again.")
+        except stripe.error.StripeError as e:
+            messages.warning(
+                request, "Something wrong with me, I have received an email about it, sorry.")
 
-        except Exception as e:
-            return JsonResponse({'error': str(e)})
+        return HttpResponseRedirect(request.META.get('HTTP_REFERER'))
 
 
 class HomeView(ListView):
@@ -49,16 +79,37 @@ class ItemDetailView(DetailView):
     context_object_name = 'item'
 
 
-class PaymentView(View):
+class PaymentView(LoginRequiredMixin, View):
     def get(self, request, *args, **kwargs):
-        print(stripe.api_key)
-        return render(request, 'shop/payment.html')
+        try:
+            order = Order.objects.get(user=request.user, ordered=False)
+            context = {
+                'order': order,
+            }
+            return render(request, 'shop/payment.html', context)
+        except ObjectDoesNotExist:
+            messages.error(
+                request, 'You do not have an order yet, keep shopping.')
+            return redirect('store:home')
 
 
-class CheckoutView(View):
+class CheckoutView(LoginRequiredMixin, View):
     def get(self, request, *args, **kwargs):
-        form = CheckoutForm()
-        return render(request, 'shop/checkout.html', {'form': form})
+        try:
+            order = Order.objects.get(user=request.user, ordered=False)
+            coupon_form = CouponForm()
+            form = CheckoutForm()
+            context = {
+                'order': order,
+                'form': form,
+                'coupon_form': coupon_form,
+                'DISPLAY_COUPON_FORM': True
+            }
+            return render(request, 'shop/checkout.html', context)
+        except ObjectDoesNotExist:
+            messages.error(
+                request, 'You do not have an order yet, keep shopping.')
+            return redirect('store:home')
 
     def post(self, request, *args, **kwargs):
         form = CheckoutForm(request.POST or None)
@@ -75,7 +126,6 @@ class CheckoutView(View):
                 order.billing_address = billing_adress
                 billing_adress.save()
                 order.save()
-                messages.success(request, 'Your order has been received')
                 payment_option = form.cleaned_data.get('payment_option')
                 if payment_option == 'S':
                     return redirect('store:payment', payment_option='stripe')
@@ -196,3 +246,28 @@ def remove_item_from_cart(request, slug):
         order.items.remove(order_item)
         messages.info(request, 'Item has been remove from your cart')
     return redirect('store:order-summary')
+
+
+def get_coupon(request, code):
+    try:
+        coupon = Coupon.objects.get(code=code)
+        return coupon
+    except ObjectDoesNotExist:
+        messages.info(request, "This coupon does not exist")
+        return redirect("core:checkout")
+
+
+def add_coupon_view(request):
+    form = CouponForm(request.POST or None)
+    if form.is_valid():
+        try:
+            code = form.cleaned_data.get('code')
+            order = Order.objects.get(
+                user=request.user, ordered=False)
+            order.coupon = get_coupon(request, code)
+            order.save()
+            messages.success(request, "Successfully added coupon")
+            return redirect("store:checkout")
+        except ObjectDoesNotExist:
+            messages.info(request, "You do not have an active order")
+            return redirect("store:checkout")

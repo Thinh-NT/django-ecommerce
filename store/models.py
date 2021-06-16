@@ -71,12 +71,30 @@ class Order(models.Model):
     ordered = models.BooleanField(default=False)
     billing_address = models.ForeignKey(
         'BillingAddress', on_delete=models.SET_NULL, blank=True, null=True)
+    payment = models.ForeignKey(
+        'Payment', on_delete=models.CASCADE, blank=True, null=True)
+    coupon = models.ForeignKey('Coupon', models.CASCADE, blank=True, null=True)
+    being_delivered = models.BooleanField(default=False)
+    received = models.BooleanField(default=False)
+    refund_requested = models.BooleanField(default=False)
+    refund_accepted = models.BooleanField(default=False)
 
     def total(self):
         total = 0
         for order_item in self.items.all():
             total += order_item.get_total_price()
+        if self.coupon:
+            discount = self.coupon.discount_amount
+            total = total * (1 - discount)
         return total
+
+    def amount_save(self):
+        if self.coupon:
+            total = 0
+            for order_item in self.items.all():
+                total += order_item.get_total_price()
+            discount = self.coupon.discount_amount
+            return total * discount
 
     def __str__(self):
         return self.user.email
@@ -91,4 +109,23 @@ class BillingAddress(models.Model):
     zip_code = models.CharField(max_length=20)
 
     def __str__(self) -> str:
-        return self.user.email
+        return 'Address'
+
+
+class Payment(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL,
+                             on_delete=models.CASCADE)
+    code = models.CharField(max_length=50)
+    amount = models.FloatField()
+    date_created = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self) -> str:
+        return str(self.amount)
+
+
+class Coupon(models.Model):
+    code = models.CharField(max_length=30)
+    discount_amount = models.FloatField()
+
+    def __str__(self) -> str:
+        return self.code
