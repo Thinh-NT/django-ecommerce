@@ -24,6 +24,7 @@ ADDRESS_CHOICES = (
 class Item(models.Model):
     slug = models.SlugField()
     title = models.CharField(max_length=100)
+    image = models.ImageField(default='default.jpg')
     price = models.FloatField()
     discount_price = models.FloatField(blank=True, null=True)
     category = models.CharField(
