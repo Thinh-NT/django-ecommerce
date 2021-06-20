@@ -100,8 +100,7 @@ class PaymentView(LoginRequiredMixin, View):
                 request, 'You do not have an order yet, keep shopping.')
             return redirect('store:home')
 
-
-class CheckoutView(LoginRequiredMixin, View):
+class CheckoutView(View):
     def get(self, request, *args, **kwargs):
         try:
             order = Order.objects.get(user=request.user, ordered=False)
@@ -140,7 +139,6 @@ class CheckoutView(LoginRequiredMixin, View):
         try:
             order = Order.objects.get(user=request.user, ordered=False)
             if form.is_valid():
-
                 use_default_shipping = form.cleaned_data.get(
                     'use_default_shipping')
                 if use_default_shipping:
@@ -157,7 +155,6 @@ class CheckoutView(LoginRequiredMixin, View):
                     else:
                         messages.info(
                             request, "No default shipping address available")
-                        return redirect('store:checkout')
                 else:
                     print("User is entering a new shipping address")
                     shipping_address1 = form.cleaned_data.get(
@@ -254,6 +251,7 @@ class CheckoutView(LoginRequiredMixin, View):
                     else:
                         messages.info(
                             request, "Please fill in the required billing address fields")
+                        return redirect('store:checkout')
 
                 payment_option = form.cleaned_data.get('payment_option')
 
@@ -268,8 +266,6 @@ class CheckoutView(LoginRequiredMixin, View):
         except ObjectDoesNotExist:
             messages.warning(request, "You do not have an active order")
             return redirect("store:order-summary")
-
-
 class OrderSummaryView(LoginRequiredMixin, View):
     def get(self, request, *args, **kwargs):
         try:
